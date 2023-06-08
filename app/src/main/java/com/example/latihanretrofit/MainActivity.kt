@@ -1,44 +1,59 @@
 package com.example.latihanretrofit
 
+import android.annotation.SuppressLint
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.Settings.Global
 import android.util.Log
 import android.widget.TextView
+import android.widget.Toast
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView.LayoutManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
+import retrofit2.*
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.create
 
-const val BASE_URL = "https://jsonplaceholder.typicode.com/"
+//const val BASE_URL = "https://jsonplaceholder.typicode.com/"
 class MainActivity : AppCompatActivity() {
-    val TAG = "MainActivity"
+
+    lateinit var recyclerView:RecyclerView
+
+    lateinit var list:ArrayList<AlbumsItem>
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val api = Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(AlbumService::class.java)
+        recyclerView = findViewById(R.id.recyclerView)
 
-        GlobalScope.launch  (Dispatchers.Main){
-            val response = api.getAlbums()
-            if (response.isSuccessful){
-                var data = ""
-                for (album in response.body()!!){
-                    data += album.toString()
-                    Log.d(TAG,album.toString())
+        list= ArrayList()
+        val layoutManager = LinearLayoutManager(this)
+
+        val adapter = RecycleAdapter(list,this)
+        recyclerView.layoutManager = layoutManager
+        val retrofit:Retrofit= Retrofit.Builder().baseUrl("https://jsonplaceholder.typicode.com/").addConverterFactory(GsonConverterFactory.create()).build()
+        val api:ApiInterface=retrofit.create(ApiInterface::class.java)
+        val call: Call<Albums> = api.getData()
+
+        call.enqueue(object:Callback<Albums?>{
+            @SuppressLint("NotifyDataSetChanged")
+            override fun onResponse(call: Call<Albums?>, response: Response<Albums?>) {
+                if (response.isSuccessful){
+                    list.clear()
+                    for (myData in response.body()!!)
+                        list.add(myData)
                 }
-                val textView = findViewById<TextView>(R.id.tvData)
-                textView.text = data
+                adapter.notifyDataSetChanged()
+                recyclerView.adapter=adapter
             }
-        }
+
+            override fun onFailure(call: Call<Albums?>, t: Throwable) {
+                Toast.makeText(this@MainActivity,"Error",Toast.LENGTH_SHORT).show()
+            }
+
+        })
 //        api.getAlbums().enqueue(object : Callback<Albums>){
 //            override fun onResponse(call: Call<Albums>, response: Response<Albums>)
 //        }
